@@ -1,8 +1,21 @@
+Note to the users: the latest release is significantly improved in terms of performance. For large files of assembly contigs, the running time could be reduced from days to a few mins. (Read more about this in the "releases" file included in the package).
+
+Description
+============
+FragGeneScan is an application for finding (fragmented) genes in short reads. It can also be applied to predict prokaryotic genes in incomplete assemblies or complete genomes. 
+
+FragGeneScan was first released through omics website (http://omics.informatics.indiana.edu/FragGeneScan/) in March 2010, where you can find its old releases. 
+
+FragGeneScan migrated to SourceForge in October, 2013. (https://sourceforge.net/projects/fraggenescan/)
+
+FragGeneScan migrated to Github for easier maintenance in March, 2017. (https://github.com/COL-IU/FragGeneScan.git)
+
 Installation
 =============
 To install FragGeneScan, please follow the steps below:
 
-1. Untar the downloaded file "FragGeneScan.tar.gz". This will automatically generate the directory "FragGeneScan".
+1. Clone the repository:
+	git clone https://github.com/COL-IU/FragGeneScan.git
 
 2. Make sure that you also have a C compiler such as "gcc" and perl interpreter.
 
@@ -112,6 +125,10 @@ TAGARVLEN
 
 4. [output_file_name].gff gene prediction results in gff format.
 
+Citation
+=========
+If you use FragGeneScan, please cite: 
+Mina Rho, Haixu Tang, and Yuzhen Ye. FragGeneScan: Predicting Genes in Short and Error-prone Reads. Nucl. Acids Res., 2010 doi: 10.1093/nar/gkq747 
 
 License
 ============
