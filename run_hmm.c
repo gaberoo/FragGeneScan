@@ -37,7 +37,9 @@ int main (int argc, char **argv)
   TRAIN train;
   int wholegenome;
   int format=0;
+
   FILE *fp_out, *fp_aa, *fp_dna, *fp;
+
   char hmm_file[STRINGLEN] = "";
   char out_header[STRINGLEN] = "";
   char aa_file[STRINGLEN] = "";
@@ -54,7 +56,8 @@ int main (int argc, char **argv)
   char p1state_file[STRINGLEN] = "";
   char dstate_file[STRINGLEN] = "";
   char train_dir[STRINGLEN] = "";
-  int count=0;
+
+  int count = 0; /* number of sequences in FASTA file ??? */
   int currcount = 0;
   int total = 0;
   char mystring[STRINGLEN] = "";
@@ -94,47 +97,59 @@ int main (int argc, char **argv)
     exit(EXIT_FAILURE);
   }
 
-  while ((c=getopt(argc, argv, "fs:o:w:t:p:")) != -1){
+  int verbose = 0;
+
+  while ((c=getopt(argc, argv, "fs:o:w:t:p:v")) != -1){
     switch (c){
+      case 'v':
+        ++verbose;
+        break;
+        
     case 's':
       strcpy(seq_file, optarg);
-      if (access(seq_file, F_OK)==-1){
-	fprintf(stderr, "ERROR: Sequence file [%s] does not exist\n", seq_file);
-	print_usage();
-	exit(EXIT_FAILURE);
+      if (access(seq_file, F_OK)==-1) {
+        fprintf(stderr, "ERROR: Sequence file [%s] does not exist\n", seq_file);
+        print_usage();
+        exit(EXIT_FAILURE);
       }
       break;  
+
     case 'w':
       wholegenome = atoi(optarg);
-      if (wholegenome != 0 && wholegenome != 1){
-	fprintf(stderr, "ERROR: An incorrect value for the option -w was entered\n");
-	print_usage();
-	exit(EXIT_FAILURE);
+      if (wholegenome != 0 && wholegenome != 1) {
+        fprintf(stderr, "ERROR: An incorrect value for the option -w was entered\n");
+        print_usage();
+        exit(EXIT_FAILURE);
       }
       break;
+
     case 'p':
       threadnum = atoi(optarg);
-      if (threadnum < 1){
-	fprintf(stderr, "ERROR: An incorrect value [%d] for the option -p was entered\n", threadnum);
-	print_usage();
-	exit(EXIT_FAILURE);
+      if (threadnum < 1) {
+        fprintf(stderr, "ERROR: An incorrect value [%d] for the option -p was entered\n", threadnum);
+        print_usage();
+        exit(EXIT_FAILURE);
       }
       printf("Using %d threads.\n", threadnum);
       break;
+
     case 'o':
       strcpy(out_header, optarg);
       break;
+
     case 't':
       strcpy(train_file, optarg);
       strcpy(hmm_file, train_dir);
       strcat(hmm_file, train_file);
 
-      if (access(hmm_file, F_OK)==-1){
-	fprintf(stderr, "ERROR: The file for model parameters [%s] does not exist\n", hmm_file);
-	print_usage();
-	exit(EXIT_FAILURE);
+      if (access(hmm_file, F_OK)==-1) {
+        fprintf(stderr, "ERROR: The file for model parameters [%s] does not exist\n", hmm_file);
+        print_usage();
+        exit(EXIT_FAILURE);
       }
+
       break;
+
     case 'f':
       format = 1;
       break;
@@ -185,22 +200,27 @@ int main (int argc, char **argv)
   get_train_from_file(hmm_file, &hmm, mstate_file, rstate_file, nstate_file, sstate_file, pstate_file,s1state_file, p1state_file, dstate_file, &train);
 
   // Initialize thread data structure
-  threadarr = (thread_data*)malloc(sizeof(thread_data) * threadnum);
+  if (verbose) fprintf(stderr,"Initializing threads...");
+
+  threadarr = (thread_data*) malloc(sizeof(thread_data) * threadnum);
   memset(threadarr, '\0', sizeof(thread_data) * threadnum);
-  for (i = 0; i < threadnum; i++)
-  {
+
+  for (i = 0; i < threadnum; i++) {
     if(threadnum > 1) sprintf(mystring, "%s.out.tmp.%d", out_header, i);
     else sprintf(mystring, "%s.out", out_header); 
     threadarr[i].out = fopen(mystring, "w");
+
     if(threadnum > 1) sprintf(mystring, "%s.faa.tmp.%d", out_header, i);
     else sprintf(mystring, "%s.faa", out_header);
     threadarr[i].aa = fopen(mystring, "w");
+
     if(threadnum > 1) sprintf(mystring, "%s.ffn.tmp.%d", out_header, i);
     else sprintf(mystring, "%s.ffn", out_header);
     threadarr[i].dna = fopen(mystring, "w");
 
     threadarr[i].hmm = (HMM*)malloc(sizeof(HMM));
     memcpy(threadarr[i].hmm, &hmm, sizeof(HMM));
+
     threadarr[i].train = (TRAIN*)malloc(sizeof(TRAIN));
     memcpy(threadarr[i].train, &train, sizeof(TRAIN));
 
@@ -211,35 +231,39 @@ int main (int argc, char **argv)
     threadarr[i].format = format;
   }
 
+  if (verbose) fprintf(stderr,"done.\n");
+
   pthread_t *thread;
-  thread = (pthread_t*)malloc(sizeof(thread) * threadnum);
+  thread = (pthread_t*) malloc(sizeof(thread) * threadnum);
   memset(thread, '\0', sizeof(thread) * threadnum);
-  void *status;
+
+  void *status = NULL;
+
   fp = fopen (seq_file, "r");
   while ( fgets (mystring , sizeof mystring , fp) ){
     if (mystring[0] == '>'){
       count++;
     }
   }
-  obs_seq_len = (int *)malloc(count * sizeof(int));
+  obs_seq_len = (int*) malloc(count * sizeof(int));
   printf("no. of seqs: %d\n", count);  
 
   i = 0;
   count = 0;
   rewind(fp);
-  while ( fgets (mystring , sizeof mystring , fp) ){
-    if (mystring[0] == '>'){
-      if (i>0){
+
+  while (fgets(mystring, sizeof mystring, fp)) {
+    if (mystring[0] == '>') {
+      if (i > 0) {
         obs_seq_len[count] = i;
         count++;
       }
       i = 0;
-    }else{
+    } else {
       bp_count = strlen(mystring);
-      while(mystring[bp_count-1] == 10 || mystring[bp_count-1]==13){
-	bp_count --;
+      while (mystring[bp_count-1] == 10 || mystring[bp_count-1]==13) {
+        bp_count--;
       }
-
       i += bp_count;
     }
   }
@@ -250,57 +274,65 @@ int main (int argc, char **argv)
   count = 0;
   j = 0;
 
-  while (!(feof(fp)))
-  {
+  while (!(feof(fp))) {
     memset(mystring, '\0', sizeof mystring);
-    fgets (mystring , sizeof mystring  , fp);
+    fgets(mystring , sizeof mystring, fp);
     bp_count = strlen(mystring);
-    while(mystring[bp_count - 1] == 10 || mystring[bp_count - 1]==13){
+
+    while (mystring[bp_count-1] == 10 || mystring[bp_count-1] == 13) {
       //mystring[bp_count - 1] = 0;
-      bp_count --;
+      bp_count--;
     }
 
-    if (mystring[0] == '>' || feof(fp)){
-      if (feof(fp))
-      {
+    if (mystring[0] == '>' || feof(fp)) {
+      // if (verbose) fprintf(stderr,"Parsing '%s'...", mystring);
+
+      if (feof(fp)) {
         memcpy(threadarr[currcount].obs_seq + j, mystring, bp_count);
         j += bp_count;
         //max = appendSeq(mystring, &(threadarr[currcount].obs_seq), max);
       }
-      if ((count > 0 && count % threadnum == 0) || feof(fp))
-      {
-        // Deal with the thread
-	for (i = 0; i < count; i++)
-	{
-	  rc = pthread_create(&thread[i], NULL, thread_func, (void*)&threadarr[i]);
-	  if (rc)
-	  {
-	    printf("Error: Unable to create thread, %d\n", rc);
-	    exit(-1);
-	  }
+
+      if ((count > 0 && count % threadnum == 0) || feof(fp)) {
+
+        if (threadnum > 1) {
+          // Deal with the thread
+          for (i = 0; i < count; i++) {
+            rc = pthread_create(&thread[i], NULL, thread_func, (void*) &threadarr[i]);
+            if (rc) {
+              printf("Error: Unable to create thread, %d\n", rc);
+              exit(-1);
+            }
+          }
+
+          // HERE IS THE BUG !
+          for (i = 0; i < count; i++) {
+            fprintf(stderr,"%d\n", i);
+            fprintf(stderr,"%d\n", thread[i]);
+
+            rc = pthread_join(thread[i], &status);
+            if (rc) {
+              printf("Error: Unable to join threads, %d\n", rc);
+              exit(-1);
+            }
+          }
+        } else {
+          for (i = 0; i < count; i++) {
+            thread_func(&threadarr[i]);
+          }
         }
-	for (i = 0; i < count; i++)
-	{
-	  rc = pthread_join(thread[i], &status);
-	  if (rc)
-	  {
-	    printf("Error: Unable to join threads, %d\n", rc);
-	    exit(-1);
-	  }
-	}
-	for (i = 0; i < count; i++)
-	{
-	  free(threadarr[i].obs_head);
-	  free(threadarr[i].obs_seq);
+
+        for (i = 0; i < count; i++) {
+          free(threadarr[i].obs_head);
+          free(threadarr[i].obs_seq);
           threadarr[i].obs_head = NULL;
           threadarr[i].obs_seq = NULL;
-	}
+        }
 
-	count = 0;
+	      count = 0;
       }
 
-      if (!(feof(fp)))
-      {
+      if (!(feof(fp))) {
         threadarr[count].obs_head = (char *)malloc((bp_count+1) * sizeof(char));
         memset(threadarr[count].obs_head, 0, (bp_count+1) * sizeof(char));
         memcpy(threadarr[count].obs_head, mystring, bp_count);
@@ -314,24 +346,25 @@ int main (int argc, char **argv)
         max = 0;
       }
 
-    }else{
+      // fprintf(stderr,"done.\n");
+    } else {
       memcpy(threadarr[currcount].obs_seq + j, mystring, bp_count);
       j += bp_count;
       //max = appendSeq(mystring, &(threadarr[currcount].obs_seq), max);
     }
-    if (feof(fp))
-    {
+
+    if (feof(fp)) {
       break;
     }
   }
-  for (i = 0; i < threadnum; i++)
-  {
+
+  for (i = 0; i < threadnum; i++) {
     fclose(threadarr[i].out);
     fclose(threadarr[i].aa);
     fclose(threadarr[i].dna);
   }
 
-  if(threadnum > 1) {
+  if (threadnum > 1) {
     /* create output file name */
     strcpy(aa_file, out_header);
     strcat(aa_file, ".faa");
@@ -352,8 +385,8 @@ int main (int argc, char **argv)
     memset(lastline, '\0', sizeof(char*) * threadnum);
     currline = (char**)malloc(sizeof(char*) * threadnum);
     memset(currline, '\0', sizeof(char*) * threadnum);
-    for (i = 0; i < threadnum; i++)
-    {
+
+    for (i = 0; i < threadnum; i++) {
       sprintf(mystring, "%s.out.tmp.%d", out_header, i);
       threadarr[i].out = fopen(mystring, "r");
       sprintf(mystring, "%s.faa.tmp.%d", out_header, i);
@@ -368,8 +401,7 @@ int main (int argc, char **argv)
     }
 
     // Organize out file
-    while (1)
-    {
+    while (1) {
       j = 0;
       for (i = 0; i < threadnum; i++)
       {
@@ -507,13 +539,10 @@ int main (int argc, char **argv)
   printf("Clock time used (by %d threads) = %.2f mins\n", threadnum, (end - start) / (60.0 * CLOCKS_PER_SEC));
 }
 
-
-void* thread_func(void *threadarr)
-{
-  thread_data *d;
-  d = (thread_data*)threadarr;
+void* thread_func (void *threadarr) {
+  thread_data *d = (thread_data*) threadarr;
   d->cg = get_prob_from_cg(d->hmm, d->train, d->obs_seq); //cg - 26 Ye April 16, 2016
-  if (strlen(d->obs_seq)>70){
+  if (strlen(d->obs_seq) > 70) {
     viterbi(d->hmm, d->train, d->obs_seq, d->out, d->aa, d->dna, d->obs_head, d->wholegenome, d->cg, d->format);
   }
 }
