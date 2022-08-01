@@ -12,6 +12,7 @@ void dump_memory(void *p, int size);
 
 void viterbi(HMM *hmm_ptr, TRAIN *train_ptr, char *O, FILE *fp_out, FILE *fp_aa, FILE *fp_dna,
 char *head, int whole_genome, int cg, int format){
+  
   double max_dbl = 10000000000.0;
   int debug=0;
 
@@ -53,16 +54,16 @@ probability */
   int dna_id=0;
   int dna_f_id=0;
   int out_nt;
-  int start_t, dna_start_t;
+  int start_t, dna_start_t = 0;
   int end_t;
-  int prev_match;
-  int start_orf;
+  int prev_match = 0;
+  int start_orf = 0;
   int frame;
   double final_score;
 
   int insert[100];
   int delete[100];
-  int insert_id, delete_id;
+  int insert_id = 0, delete_id = 0;
   char *head_short=NULL;
   char delimi[] = " ";
 
@@ -880,8 +881,8 @@ vpath[temp_t] != M1_STATE_1  && vpath[temp_t] != M4_STATE_1){
 	    codon[3] = 0;
 	    int s = 0;
 	    //find the optimal start codon within 30bp up- and downstream of start codon
-	    double e_save;
-            int s_save;
+      double e_save = 0.0;
+      int s_save = 0;
 	    while((!(!strcmp(codon, "TAA") || !strcmp(codon, "TAG") || !strcmp(codon, "TGA"))) && (start_old-1-s-35>=0)) {
 	      if(!strcmp(codon, "ATG") || !strcmp(codon, "GTG") || !strcmp(codon, "TTG")) {
 		utr[0] = 0;
@@ -952,8 +953,8 @@ vpath[temp_t] != M1_STATE_1  && vpath[temp_t] != M4_STATE_1){
 	    codon[3] = 0;
 	    int s = 0;
 	    //find the optimal start codon within 30bp up- and downstream of start codon
-	    double e_save;
-            int s_save;
+      double e_save = 0.0;
+      int s_save = 0;
 	    while((!(!strcmp(codon, "TTA") || !strcmp(codon, "CTA") || !strcmp(codon, "TCA"))) && (end_old-2+s+35 < glen)) {
 	      if(!strcmp(codon, "CAT") || !strcmp(codon, "CAC") || !strcmp(codon, "CAA")) {
 		utr[0] = 0;

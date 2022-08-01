@@ -134,7 +134,7 @@ void free_imatrix(int **m,int num_row){
 
 int tr2int (char *tr){
 
-  int result;
+  int result = -1;
 
   if      (strcmp(tr, "MM")==0){   result = 0; }
   else if (strcmp(tr, "MI")==0){   result = 1; }
@@ -355,7 +355,7 @@ void get_protein(char *dna, char *protein,  int strand, int whole_genome){
   } 
 }
 
-void print_usage(){
+void print_usage(void){
 
   printf("%s", "USAGE: ./FragGeneScan.pl -s [seq_file_name] -o [output_file_name] -w [1 or 0] -t [train_file_name] (-p [thread_num])\n\n");
   printf("%s", "       Mandatory parameters\n");
