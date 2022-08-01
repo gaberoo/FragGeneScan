@@ -6,8 +6,10 @@
 #include <string.h>
 #include <time.h>
 #include "hmm.h"
+#include "util_lib.h"
 
 #include <pthread.h>
+#include <limits.h>
 
 #define ADD_LEN 1024
 #define STRINGLEN 4096
@@ -35,7 +37,7 @@ int main (int argc, char **argv)
   HMM hmm;
   char *obs_seq, *obs_head;
   TRAIN train;
-  int wholegenome;
+  int wholegenome=0;
   int format=0;
   FILE *fp_out, *fp_aa, *fp_dna, *fp;
   char hmm_file[STRINGLEN] = "";
@@ -214,6 +216,33 @@ int main (int argc, char **argv)
   pthread_t *thread;
   thread = (pthread_t*)malloc(sizeof(thread) * threadnum);
   memset(thread, '\0', sizeof(thread) * threadnum);
+  
+  // Set the stack size for threads to be sufficient for viterbi().
+  // This is necessary to avoid bad_alloc errors on MacOSX!
+  // JEB 2022-07-31
+  size_t         s1;
+  pthread_attr_t attr;
+                                                                               
+  rc = pthread_attr_init(&attr);
+  if (rc == -1) {
+     perror("error in pthread_attr_init");
+     exit(1);
+  }
+  pthread_attr_getstacksize(&attr, &s1);
+  
+  const size_t minimum_pthread_stack_size = 2000000;
+  size_t pagesize = getpagesize();
+  s1 = (int)((minimum_pthread_stack_size / pagesize)+1) * pagesize;
+  if (s1 < PTHREAD_STACK_MIN) {
+    s1 = PTHREAD_STACK_MIN;
+  }
+  rc = pthread_attr_setstacksize(&attr, s1);
+  if (rc == -1) {
+     perror("error in pthread_attr_setstacksize");
+     exit(2);
+  }
+  
+  
   void *status;
   fp = fopen (seq_file, "r");
   while ( fgets (mystring , sizeof mystring , fp) ){
@@ -270,33 +299,33 @@ int main (int argc, char **argv)
       if ((count > 0 && count % threadnum == 0) || feof(fp))
       {
         // Deal with the thread
-	for (i = 0; i < count; i++)
-	{
-	  rc = pthread_create(&thread[i], NULL, thread_func, (void*)&threadarr[i]);
-	  if (rc)
-	  {
-	    printf("Error: Unable to create thread, %d\n", rc);
-	    exit(-1);
-	  }
+        for (i = 0; i < count; i++)
+        {
+          rc = pthread_create(&thread[i], &attr, thread_func, (void*)&threadarr[i]);
+          if (rc)
+          {
+            printf("Error: Unable to create thread, %d\n", rc);
+            exit(-1);
+          }
         }
-	for (i = 0; i < count; i++)
-	{
-	  rc = pthread_join(thread[i], &status);
-	  if (rc)
-	  {
-	    printf("Error: Unable to join threads, %d\n", rc);
-	    exit(-1);
-	  }
-	}
-	for (i = 0; i < count; i++)
-	{
-	  free(threadarr[i].obs_head);
-	  free(threadarr[i].obs_seq);
-          threadarr[i].obs_head = NULL;
-          threadarr[i].obs_seq = NULL;
-	}
+        for (i = 0; i < count; i++)
+        {
+          rc = pthread_join(thread[i], &status);
+          if (rc)
+          {
+            printf("Error: Unable to join threads, %d\n", rc);
+            exit(-1);
+          }
+        }
+        for (i = 0; i < count; i++)
+        {
+          free(threadarr[i].obs_head);
+          free(threadarr[i].obs_seq);
+                threadarr[i].obs_head = NULL;
+                threadarr[i].obs_seq = NULL;
+        }
 
-	count = 0;
+        count = 0;
       }
 
       if (!(feof(fp)))
@@ -516,6 +545,7 @@ void* thread_func(void *threadarr)
   if (strlen(d->obs_seq)>70){
     viterbi(d->hmm, d->train, d->obs_seq, d->out, d->aa, d->dna, d->obs_head, d->wholegenome, d->cg, d->format);
   }
+  return NULL;
 }
 
 int appendSeq(char *input, char **seq, int input_max)
